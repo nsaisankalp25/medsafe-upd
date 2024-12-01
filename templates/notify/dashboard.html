@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{% static 'css/styele_1.css' %}">
+    <script>
+        // Inject user_tablets data into JavaScript
+        const userTablets = JSON.parse('{{ user_tablets_json|escapejs }}');
+        
+        // Set to track alerted alarm times
+        const alertedTimes = new Set();
+
+        // Function to convert 24-hour time format to 12-hour time format
+        function convertTo12HourFormat(time24) {
+            const [hours, minutes] = time24.split(':').map(Number);
+            const suffix = hours >= 12 ? 'PM' : 'AM';
+            const hours12 = hours % 12 || 12; // Convert 0 (midnight) to 12
+            const minutesFormatted = minutes < 10 ? '0' + minutes : minutes;
+            return `${hours12}:${minutesFormatted} ${suffix}`;
+        }
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Welcome {{ user }}..!</h1>
+    </header>
+    
+    <main>
+        <!-- List of User Tablet Recordings -->
+        <section class="list-section">
+            <h2>Your Tablet Usage Recordings</h2>
+            <ul>
+                {% for user_tablet in user_tablets %}
+                    <li>
+                        {{ user_tablet.tablet.name }} - at {{ user_tablet.alarm_time }}
+                    </li>
+                {% empty %}
+                    <li>No recordings available.</li>
+                {% endfor %}
+            </ul>
+        </section>
+        
+        <section class="list-section">
+            <a href="{% url 'recordtablet' %}" class="button">Record User tablets</a>
+        </section>
+
+        <section class="list-section">
+            <a href="{% url 'addtablet' %}" class="button">Add new tablet to registry</a>
+        </section>
+
+        <audio id="notification-sound" src="{% static 'sounds/notification.wav' %}" preload="auto"></audio>
+
+        <!-- Custom Popup Box -->
+        <div id="popup" class="popup">
+            <div class="popup-content">
+                <span id="close-popup" class="popup-close">&times;</span>
+                <h2 id="popup-message">Time to take your tablet!</h2>
+            </div>
+        </div>
+
+        <!-- JavaScript for Notification Sound and Popup -->
+        <script>
+            function playNotificationSound() {
+                const audio = document.getElementById('notification-sound');
+                audio.play();
+            }
+
+            function showPopup(message) {
+                const popup = document.getElementById('popup');
+                const popupMessage = document.getElementById('popup-message');
+                popupMessage.innerText = message;
+                popup.style.display = 'block';  // Show the popup
+            }
+
+            function hidePopup() {
+                const popup = document.getElementById('popup');
+                popup.style.display = 'none';  // Hide the popup
+            }
+            
+            function checkNotificationTime() {
+                const now = new Date();
+                const currentTime24 = now.toTimeString().slice(0, 5); // Get HH:MM format (24-hour)
+                const currentTime12 = convertTo12HourFormat(currentTime24); // Convert to 12-hour format
+
+                console.log(currentTime12); // Debugging output
+
+                // Loop through userTablets to check for matching alarm times
+                userTablets.forEach((tablet) => {
+                    const alarmTime12 = convertTo12HourFormat(tablet.alarm_time); // Convert user alarm time to 12-hour format
+                    
+                    if (currentTime12 === alarmTime12 && !alertedTimes.has(tablet.alarm_time)) {
+                        // Show the popup instead of alert
+                        showPopup(`Time to take your tablet: ${tablet.tablet_name} at ${currentTime12}`);
+
+                        for (let i = 0; i < 4; i++) {
+                            playNotificationSound();  // Play the sound multiple times
+                        }
+                        alertedTimes.add(tablet.alarm_time); // Mark this alarm time as alerted
+                    }
+                });
+            }
+
+            // Close the popup when the user clicks the close button
+            document.getElementById('close-popup').addEventListener('click', hidePopup);
+
+            // Check notification time every 5 seconds
+            setInterval(checkNotificationTime, 5000);
+        </script>
+
+        <!-- CSS for Popup Styling -->
+        <style>
+            .popup {
+                display: none;  /* Hidden by default */
+                position: fixed;
+                left: 50%;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: large;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                background-color: white;
+                padding: 20px;
+                border: 2px solid #140d0dc4;
+                box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+                width: 300px;
+                text-align: center;
+            }
+
+            .popup-close {
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                font-size: 20px;
+                cursor: pointer;
+            }
+
+            .popup-content {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+        </style>
+    </main>
+</body>
+</html>
