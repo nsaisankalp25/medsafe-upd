@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +10,7 @@
     <script>
         // Inject user_tablets data into JavaScript
         const userTablets = JSON.parse('{{ user_tablets_json|escapejs }}');
-        
+
         // Set to track alerted alarm times
         const alertedTimes = new Set();
 
@@ -23,26 +24,33 @@
         }
     </script>
 </head>
+
 <body>
     <header>
         <h1>Welcome {{ user }}..!</h1>
     </header>
-    
+
+    <div class="overlay" id="overlay"></div>
+    <div class="image-popup" id="image-popup">
+        <img id="popup-image" src="" alt="">
+        <!-- <button class="close-btn" onclick="closePopup()">Close</button>   -->
+    </div>
+
     <main>
         <!-- List of User Tablet Recordings -->
         <section class="list-section">
             <h2>Your Tablet Usage Recordings</h2>
             <ul>
                 {% for user_tablet in user_tablets %}
-                    <li>
-                        {{ user_tablet.tablet.name }} - at {{ user_tablet.alarm_time }}
-                    </li>
+                <li>
+                    {{ user_tablet.tablet.name }} - at {{ user_tablet.alarm_time }}
+                </li>
                 {% empty %}
-                    <li>No recordings available.</li>
+                <li>No recordings available.</li>
                 {% endfor %}
             </ul>
         </section>
-        
+
         <section class="list-section">
             <a href="{% url 'recordtablet' %}" class="button">Record User tablets</a>
         </section>
@@ -51,7 +59,7 @@
             <a href="{% url 'addtablet' %}" class="button">Add new tablet to registry</a>
         </section>
 
-        <audio id="notification-sound" src="{% static 'sounds/notification.wav' %}" preload="auto"></audio>
+        <audio id="notification-sound" src="{% static 'sounds/alarm.mp3' %}" preload="auto"></audio>
 
         <!-- Custom Popup Box -->
         <div id="popup" class="popup">
@@ -68,18 +76,55 @@
                 audio.play();
             }
 
-            function showPopup(message) {
+            const images = {
+                amoxicillin: "{% static 'pics/amoxicillin.jpg' %}",
+                aspirin: "{% static 'pics/aspirin.jpg' %}",
+                atorvastatin: "{% static 'pics/atorvastatin.jpg' %}",
+                cetirizine: "{% static 'pics/cetirizine.jpg' %}",
+                losartan: "{% static 'pics/losartan.jpg' %}",
+                metaformin: "{% static 'pics/metaformin.jpg' %}",
+                omeprazole: "{% static 'pics/omeprazole.jpg' %}",
+                pantoprazole: "{% static 'pics/pantoprazole.jpg' %}",
+                paracetamol: "{% static 'pics/paracetamol.jpg' %}"
+
+            };
+
+            function showPopup(message, tabletName) {
                 const popup = document.getElementById('popup');
                 const popupMessage = document.getElementById('popup-message');
+                const popupImage = document.getElementById('popup-image');
+                const overlay = document.getElementById('overlay');
+
+                // Set the popup message
                 popupMessage.innerText = message;
-                popup.style.display = 'block';  // Show the popup
+
+                // Set the image source based on the tablet name
+                popupImage.style.visibility = 'hidden';
+                if (images[tabletName]) {
+                    popupImage.src = images[tabletName];
+                    popupImage.style.visibility = 'visible';
+                    popupImage.style.display = 'block';
+                } else {
+                    popupImage.src = '';
+                    popupImage.style.display = 'none';
+                }
+
+                // Show the popup and overlay
+                popup.style.display = 'block';
+                overlay.style.display = 'block';
             }
+
 
             function hidePopup() {
                 const popup = document.getElementById('popup');
+                const popupImage = document.getElementById('popup-image');
+
                 popup.style.display = 'none';  // Hide the popup
+                popupImage.style.src = '';
+
+                popupImage.style.display = 'none'
             }
-            
+
             function checkNotificationTime() {
                 const now = new Date();
                 const currentTime24 = now.toTimeString().slice(0, 5); // Get HH:MM format (24-hour)
@@ -90,14 +135,17 @@
                 // Loop through userTablets to check for matching alarm times
                 userTablets.forEach((tablet) => {
                     const alarmTime12 = convertTo12HourFormat(tablet.alarm_time); // Convert user alarm time to 12-hour format
-                    
+
                     if (currentTime12 === alarmTime12 && !alertedTimes.has(tablet.alarm_time)) {
-                        // Show the popup instead of alert
-                        showPopup(`Time to take your tablet: ${tablet.tablet_name} at ${currentTime12}`);
+                        showPopup(
+                            `Time to take your tablet: ${tablet.tablet_name} at ${currentTime12}`,
+                            tablet.tablet_name.toLowerCase() // Pass the tablet name for image lookup
+                        );
 
                         for (let i = 0; i < 4; i++) {
-                            playNotificationSound();  // Play the sound multiple times
+                            playNotificationSound(); // Play the sound multiple times
                         }
+
                         alertedTimes.add(tablet.alarm_time); // Mark this alarm time as alerted
                     }
                 });
@@ -113,7 +161,8 @@
         <!-- CSS for Popup Styling -->
         <style>
             .popup {
-                display: none;  /* Hidden by default */
+                display: none;
+                /* Hidden by default */
                 position: fixed;
                 left: 50%;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -145,4 +194,5 @@
         </style>
     </main>
 </body>
+
 </html>
