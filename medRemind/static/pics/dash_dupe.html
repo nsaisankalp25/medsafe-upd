@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{% static 'css/styele_1.css' %}">
+    <script>
+        // Inject user_tablets data into JavaScript
+        const userTablets = JSON.parse('{{ user_tablets_json|escapejs }}');
+        
+        // Set to track alerted alarm times
+        const alertedTimes = new Set();
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Welcome {{ user }}..!</h1>
+    </header>
+    
+    <main>
+        <!-- List of User Tablet Recordings -->
+        <section class="list-section">
+            <h2>Your Tablet Usage Recordings</h2>
+            <ul>
+                {% for user_tablet in user_tablets %}
+                    <li>
+                        {{ user_tablet.tablet.name }} - at {{ user_tablet.alarm_time }}
+                    </li>
+                {% empty %}
+                    <li>No recordings available.</li>
+                {% endfor %}
+            </ul>
+        </section>
+        
+        <section class="list-section">
+            <a href="{% url 'recordtablet' %}" class="button">Record User tablets</a>
+        </section>
+
+        <section class="list-section">
+            <a href="{% url 'addtablet' %}" class="button">Add new tablet to registry</a>
+        </section>
+
+        <audio id="notification-sound" src="{% static 'sounds/notification.wav' %}" preload="auto"></audio>
+
+        <!-- JavaScript for Notification Sound -->
+        <script>
+            function playNotificationSound() {
+                const audio = document.getElementById('notification-sound');
+                audio.play();
+            }
+            
+            function checkNotificationTime() {
+                const now = new Date();
+                const currentTime = now.toTimeString().slice(0, 5); // Get HH:MM format
+
+                console.log(currentTime); // Debugging output
+
+                // Loop through userTablets to check for matching alarm times
+                userTablets.forEach((tablet) => {
+                    if (currentTime === tablet.alarm_time && !alertedTimes.has(tablet.alarm_time)) {
+                        // Trigger notification only if this alarm time hasn't been alerted yet
+                        alert(`Time to take your tablet: ${tablet.tablet_name} at ${currentTime}`);
+                        playNotificationSound();
+                        alertedTimes.add(tablet.alarm_time); // Mark this alarm time as alerted
+                    }
+                });
+            }
+
+            // Check notification time every 5 seconds
+            setInterval(checkNotificationTime, 5000);
+        </script>
+    </main>
+</body>
+</html>
+
